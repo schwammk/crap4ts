@@ -1,0 +1,21 @@
+{
+  "name": "crap4ts",
+  "version": "0.1.0",
+  "description": "CRAP (Change Risk Anti-Pattern) metric for TypeScript, with crap4clj parity",
+  "type": "module",
+  "bin": { "crap4ts": "dist/cli.js" },
+  "engines": { "node": ">=20" },
+  "peerDependencies": { "typescript": ">=5" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build",
+    "test": "vitest run",
+    "crap": "npx vitest run --coverage.enabled --coverage.reporter=lcov && node dist/cli.js --source-root src --lcov coverage/lcov.info --use-existing-coverage --threshold 30"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@vitest/coverage-v8": "^3",
+    "typescript": "~5.9.2",
+    "vitest": "^3"
+  }
+}
