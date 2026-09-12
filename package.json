@@ -5,7 +5,7 @@
   "type": "module",
   "bin": { "crap4ts": "dist/cli.js" },
   "engines": { "node": ">=20" },
-  "peerDependencies": { "typescript": ">=5" },
+  "dependencies": { "typescript": ">=5" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "npm run build",
@@ -15,7 +15,6 @@
   "devDependencies": {
     "@types/node": "^20",
     "@vitest/coverage-v8": "^3",
-    "typescript": "~5.9.2",
     "vitest": "^3"
   }
 }
