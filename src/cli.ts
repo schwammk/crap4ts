@@ -44,7 +44,7 @@ export function parseArgs(argv: readonly string[]): CliOptions {
         break;
       case '--threshold': {
         const value = Number(needValue(flag, i));
-        if (!Number.isFinite(value)) throw new CliError('--threshold must be a number');
+        if (!Number.isFinite(value) || value < 0) throw new CliError('--threshold must be a non-negative number');
         options.threshold = value;
         i++;
         break;

@@ -40,6 +40,10 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--threshold', 'nope'])).toThrow(CliError);
   });
 
+  it('rejects a negative threshold', () => {
+    expect(() => parseArgs(['--threshold', '-5'])).toThrow(CliError);
+  });
+
   it('rejects a bad format', () => {
     expect(() => parseArgs(['--format', 'yaml'])).toThrow(CliError);
   });
