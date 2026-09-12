@@ -2,6 +2,7 @@
 
 import { exec as execCallback } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { collectFunctions } from './complexity.js';
 import { joinCoverage, mergeLcov } from './lcov.js';
 import { renderJson, renderText } from './report.js';
@@ -129,4 +130,10 @@ export async function runCli(argv: readonly string[], io: Io = defaultIo): Promi
     io.stderr(`crap4ts: ${(e as Error).message}\n`);
     return 2;
   }
+}
+
+const isMain =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMain) {
+  process.exitCode = await runCli(process.argv.slice(2));
 }
