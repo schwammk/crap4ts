@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+import { exec as execCallback } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { collectFunctions } from './complexity.js';
+import { joinCoverage, mergeLcov } from './lcov.js';
+import { renderJson, renderText } from './report.js';
+
 export class CliError extends Error {}
 
 export interface CliOptions {
@@ -65,4 +71,62 @@ export function parseArgs(argv: readonly string[]): CliOptions {
   }
   if (options.coverageCommand !== undefined) options.useExistingCoverage = true;
   return options;
+}
+
+export interface Io {
+  stdout(s: string): void;
+  stderr(s: string): void;
+  exec(cmd: string): Promise<void>;
+}
+
+const execAsync = (cmd: string): Promise<void> =>
+  new Promise((resolve, reject) =>
+    execCallback(cmd, {}, (err, _stdout, stderr) => {
+      if (err) {
+        const e = err as NodeJS.ErrnoException & { stderr?: string };
+        e.message = `coverage command failed: ${cmd}`;
+        e.stderr = String(stderr ?? '');
+        reject(e);
+      } else resolve();
+    }),
+  );
+
+export const defaultIo: Io = {
+  stdout: (s) => process.stdout.write(s),
+  stderr: (s) => process.stderr.write(s),
+  exec: execAsync,
+};
+
+export async function runCli(argv: readonly string[], io: Io = defaultIo): Promise<number> {
+  let options: CliOptions;
+  try {
+    options = parseArgs(argv);
+  } catch (e) {
+    io.stderr(`crap4ts: ${(e as Error).message}\n`);
+    return 2;
+  }
+  try {
+    if (options.coverageCommand !== undefined) {
+      try {
+        await io.exec(options.coverageCommand);
+      } catch (e) {
+        const err = e as Error & { stderr?: string };
+        io.stderr(`crap4ts: coverage command failed: ${options.coverageCommand}\n${err.stderr ?? ''}\n`);
+        return 2;
+      }
+    }
+    const { files, missing } = mergeLcov(options.lcov);
+    for (const path of missing) io.stderr(`crap4ts: warning: no coverage file at ${path}\n`);
+    const sourceRoot = existsSync(options.sourceRoot) ? options.sourceRoot : '.';
+    const functions = collectFunctions(sourceRoot);
+    const scored = joinCoverage(functions, files);
+    for (const s of scored) {
+      if (s.coverage === null) io.stderr(`crap4ts: warning: no coverage data for ${s.name} (${s.file})\n`);
+    }
+    io.stdout(options.format === 'json' ? renderJson(scored) : renderText(scored));
+    return scored.some((s) => s.crap !== null && s.crap > options.threshold) ? 1 : 0;
+  } catch (e) {
+    io.stderr(`crap4ts: ${(e as Error).message}\n`);
+    return 2;
+  }
 }
