@@ -48,7 +48,7 @@ function countDecisions(root: ts.Node): number {
         count += 1;
         break;
       case ts.SyntaxKind.CaseClause:
-        if (!(node as ts.CaseClause).isDefaultCase) count += 1;
+        count += 1;
         break;
       default:
         if (ts.isBinaryExpression(node) && LOGICAL_TOKENS.has(node.operatorToken.kind)) count += 1;
