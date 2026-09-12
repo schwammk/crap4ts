@@ -34,7 +34,7 @@ export function parseLcov(text: string, sourceName = '<lcov>'): LcovFile[] {
       continue;
     }
     if (!current) {
-      throw new Error(`malformed LCOV record in ${sourceName} (record ${recordNo + 1}): "${line}"`);
+      throw new Error(`malformed LCOV record in ${sourceName} (record ${Math.max(recordNo, 1)}): "${line}"`);
     }
     const fn = line.match(/^FN:(\d+),(.+)$/);
     if (fn) {
@@ -46,7 +46,7 @@ export function parseLcov(text: string, sourceName = '<lcov>'): LcovFile[] {
       current.functions.push({ line: fnLines.get(fnda[2]) ?? 0, name: fnda[2], hits: Number(fnda[1]) });
       continue;
     }
-    throw new Error(`malformed LCOV record in ${sourceName} (record ${recordNo + 1}): "${line}"`);
+    throw new Error(`malformed LCOV record in ${sourceName} (record ${Math.max(recordNo, 1)}): "${line}"`);
   }
   return files;
 }

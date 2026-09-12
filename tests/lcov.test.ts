@@ -41,6 +41,18 @@ describe('parseLcov', () => {
 
   it('throws on an unknown directive with context', () => {
     expect(() => parseLcov('SF:a.ts\nGARBAGE:1\nend_of_record\n', 'cov/a.info')).toThrowError(
+      /malformed LCOV record in cov\/a\.info \(record 1\): "GARBAGE:1"/,
+    );
+  });
+
+  it('reports record 1 for a malformed line before any SF', () => {
+    expect(() => parseLcov('GARBAGE:1\nSF:a.ts\nend_of_record\n', 'cov/a.info')).toThrowError(
+      /malformed LCOV record in cov\/a\.info \(record 1\): "GARBAGE:1"/,
+    );
+  });
+
+  it('reports the correct record number for a malformed line in a later record', () => {
+    expect(() => parseLcov('SF:a.ts\nend_of_record\nSF:b.ts\nGARBAGE:1\nend_of_record\n', 'cov/a.info')).toThrowError(
       /malformed LCOV record in cov\/a\.info \(record 2\): "GARBAGE:1"/,
     );
   });
