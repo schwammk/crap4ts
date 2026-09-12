@@ -1,0 +1,10 @@
+SF:src/math.ts
+FN:1,add
+FNDA:5,add
+FN:6,scale
+FNDA:0,scale
+FN:12,boom
+FNDA:0,boom
+LH:2
+LF:14
+end_of_record
