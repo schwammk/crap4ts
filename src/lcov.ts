@@ -1,5 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve, dirname, sep } from 'node:path';
+import type { CollectedFunction } from './complexity.js';
+import { crapScore, riskBand } from './crap.js';
+import type { ScoredFunction } from './crap.js';
 
 export interface LcovFunction {
   line: number;
@@ -151,4 +154,35 @@ export function mergeLcov(
     }
   }
   return { files: [...merged.values()], missing };
+}
+
+function normalize(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function sameFile(a: string, b: string): boolean {
+  const x = normalize(a);
+  const y = normalize(b);
+  return x === y || x.endsWith(`/${y}`) || y.endsWith(`/${x}`);
+}
+
+function coverageFor(fn: CollectedFunction, lcov: readonly LcovFile[]): number | null {
+  const file = lcov.find((f) => sameFile(f.file, fn.file));
+  if (!file) return null;
+  const byLine = file.functions.filter((r) => r.line === fn.startLine);
+  if (byLine.length === 1) return byLine[0].hits > 0 ? 1 : 0;
+  const byName = file.functions.filter((r) => r.name === fn.name || r.name.endsWith(`.${fn.name}`));
+  if (byName.length === 1) return byName[0].hits > 0 ? 1 : 0;
+  return null;
+}
+
+export function joinCoverage(
+  functions: readonly CollectedFunction[],
+  lcov: readonly LcovFile[],
+): ScoredFunction[] {
+  return functions.map((fn) => {
+    const coverage = coverageFor(fn, lcov);
+    const crap = crapScore(fn.cc, coverage);
+    return { file: fn.file, name: fn.name, cc: fn.cc, coverage, crap, risk: riskBand(crap) };
+  });
 }

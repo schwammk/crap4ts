@@ -2,7 +2,8 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { expandGlobs, mergeLcov, parseLcov } from '../src/lcov.js';
+import type { CollectedFunction } from '../src/complexity.js';
+import { expandGlobs, joinCoverage, mergeLcov, parseLcov } from '../src/lcov.js';
 
 const SAMPLE = `
 SF:src/math.ts
@@ -100,5 +101,51 @@ describe('mergeLcov', () => {
     expect(shared[0].functions[0].hits).toBe(2);
     expect(files.filter((f) => f.file === 'src/a.ts')).toHaveLength(1);
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('joinCoverage', () => {
+  const fn = (over: Partial<CollectedFunction>): CollectedFunction => ({
+    file: 'packages/app-1/src/math.ts',
+    name: 'add',
+    cc: 2,
+    startLine: 3,
+    ...over,
+  });
+
+  it('joins by exact line within a suffix-matched file', () => {
+    const lcov = parseLcov('SF:impl/packages/app-1/src/math.ts\nFN:3,add\nFNDA:2,add\nend_of_record\n');
+    const [scored] = joinCoverage([fn({})], lcov);
+    expect(scored).toEqual({
+      file: 'packages/app-1/src/math.ts',
+      name: 'add',
+      cc: 2,
+      coverage: 1,
+      crap: 2,
+      risk: 'low',
+    });
+  });
+
+  it('reports uncovered functions as coverage 0', () => {
+    const lcov = parseLcov('SF:p/src/math.ts\nFN:3,add\nFNDA:0,add\nend_of_record\n');
+    expect(joinCoverage([fn({ file: 'src/math.ts' })], lcov)[0].coverage).toBe(0);
+  });
+
+  it('falls back to name-suffix match when lines disagree', () => {
+    const lcov = parseLcov('SF:p/src/math.ts\nFN:99,Greeter.greet\nFNDA:1,Greeter.greet\nend_of_record\n');
+    const [scored] = joinCoverage([fn({ file: 'src/math.ts', name: 'greet', startLine: 5 })], lcov);
+    expect(scored.coverage).toBe(1);
+  });
+
+  it('leaves unmatched functions with null coverage and unknown risk', () => {
+    const [scored] = joinCoverage([fn({})], []);
+    expect(scored.coverage).toBeNull();
+    expect(scored.crap).toBeNull();
+    expect(scored.risk).toBe('unknown');
+  });
+
+  it('leaves ambiguous matches (two same-line suffix-matching records) as null', () => {
+    const lcov = parseLcov('SF:p/src/math.ts\nFN:3,add\nFNDA:1,add\nFN:3,Sub.add\nFNDA:1,Sub.add\nend_of_record\n');
+    expect(joinCoverage([fn({})], lcov)[0].coverage).toBeNull();
   });
 });
