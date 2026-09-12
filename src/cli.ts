@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { exec as execCallback } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { collectFunctions } from './complexity.js';
 import { joinCoverage, mergeLcov } from './lcov.js';
@@ -132,8 +132,11 @@ export async function runCli(argv: readonly string[], io: Io = defaultIo): Promi
   }
 }
 
+// realpath argv[1] so bins invoked through symlinks (e.g. npm link) still match
+// import.meta.url, which Node resolves to the real file path.
 const isMain =
-  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
 if (isMain) {
   process.exitCode = await runCli(process.argv.slice(2));
 }
