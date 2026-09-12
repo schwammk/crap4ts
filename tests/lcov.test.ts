@@ -1,5 +1,8 @@
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseLcov } from '../src/lcov.js';
+import { expandGlobs, mergeLcov, parseLcov } from '../src/lcov.js';
 
 const SAMPLE = `
 SF:src/math.ts
@@ -55,5 +58,47 @@ describe('parseLcov', () => {
     expect(() => parseLcov('SF:a.ts\nend_of_record\nSF:b.ts\nGARBAGE:1\nend_of_record\n', 'cov/a.info')).toThrowError(
       /malformed LCOV record in cov\/a\.info \(record 2\): "GARBAGE:1"/,
     );
+  });
+});
+
+describe('expandGlobs', () => {
+  it('finds nested lcov files with ** and *', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'crap4ts-glob-'));
+    mkdirSync(join(dir, 'coverage/app-1/impl'), { recursive: true });
+    mkdirSync(join(dir, 'coverage/app-2/impl'), { recursive: true });
+    writeFileSync(join(dir, 'coverage/app-1/impl/lcov.info'), '');
+    writeFileSync(join(dir, 'coverage/app-2/impl/lcov.info'), '');
+    const found = expandGlobs(['coverage/**/lcov.info'], dir);
+    expect(found).toEqual([
+      join(dir, 'coverage/app-1/impl/lcov.info'),
+      join(dir, 'coverage/app-2/impl/lcov.info'),
+    ]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('ignores node_modules', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'crap4ts-glob2-'));
+    mkdirSync(join(dir, 'node_modules/pkg'), { recursive: true });
+    writeFileSync(join(dir, 'node_modules/pkg/lcov.info'), '');
+    expect(expandGlobs(['**/lcov.info'], dir)).toEqual([]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('mergeLcov', () => {
+  it('merges duplicate SF paths with max hits, reports missing paths', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'crap4ts-merge-'));
+    writeFileSync(
+      join(dir, 'a.info'),
+      'SF:src/shared.ts\nFN:1,f\nFNDA:0,f\nend_of_record\nSF:src/a.ts\nFN:1,onlyA\nFNDA:1,onlyA\nend_of_record\n',
+    );
+    writeFileSync(join(dir, 'b.info'), 'SF:src/shared.ts\nFN:1,f\nFNDA:2,f\nend_of_record\n');
+    const { files, missing } = mergeLcov([join(dir, 'a.info'), join(dir, 'b.info'), join(dir, 'gone.info')]);
+    expect(missing).toEqual([join(dir, 'gone.info')]);
+    const shared = files.filter((f) => f.file === 'src/shared.ts');
+    expect(shared).toHaveLength(1);
+    expect(shared[0].functions[0].hits).toBe(2);
+    expect(files.filter((f) => f.file === 'src/a.ts')).toHaveLength(1);
+    rmSync(dir, { recursive: true, force: true });
   });
 });

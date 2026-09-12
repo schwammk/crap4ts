@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve, dirname, sep } from 'node:path';
+
 export interface LcovFunction {
   line: number;
   name: string;
@@ -49,4 +52,103 @@ export function parseLcov(text: string, sourceName = '<lcov>'): LcovFile[] {
     throw new Error(`malformed LCOV record in ${sourceName} (record ${Math.max(recordNo, 1)}): "${line}"`);
   }
   return files;
+}
+
+function globToRegExp(pattern: string): RegExp {
+  let re = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '*') {
+      if (pattern[i + 1] === '*') {
+        i++;
+        if (pattern[i + 1] === '/') {
+          i++;
+          re += '(?:.*/)?';
+        } else {
+          re += '.*';
+        }
+      } else {
+        re += '[^/]*';
+      }
+    } else if (ch === '?') {
+      re += '.';
+    } else {
+      re += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    }
+  }
+  return new RegExp(`^${re}$`);
+}
+
+function staticRoot(pattern: string): string {
+  const parts = pattern.split(sep);
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].includes('*') || parts[i].includes('?')) {
+      return i === 0 ? sep : join(sep, ...parts.slice(0, i));
+    }
+  }
+  return dirname(pattern);
+}
+
+export function expandGlobs(patterns: readonly string[], cwd: string = process.cwd()): string[] {
+  const found = new Set<string>();
+  for (const raw of patterns) {
+    const pattern = resolve(cwd, raw);
+    const re = globToRegExp(pattern);
+    const root = staticRoot(pattern);
+    const walk = (dir: string): void => {
+      let entries;
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.name === 'node_modules' || entry.name === '.git') continue;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (re.test(full)) found.add(full);
+      }
+    };
+    walk(root);
+  }
+  return [...found].sort();
+}
+
+export function mergeLcov(
+  paths: readonly string[],
+  cwd: string = process.cwd(),
+): { files: LcovFile[]; missing: string[] } {
+  const merged = new Map<string, LcovFile>();
+  const missing: string[] = [];
+  const inputs = new Set<string>();
+  for (const raw of paths) {
+    if (raw.includes('*') || raw.includes('?')) {
+      for (const found of expandGlobs([raw], cwd)) inputs.add(found);
+    } else {
+      inputs.add(resolve(cwd, raw));
+    }
+  }
+  for (const file of [...inputs].sort()) {
+    let text: string;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch {
+      missing.push(file);
+      continue;
+    }
+    for (const parsed of parseLcov(text, file)) {
+      const key = parsed.file;
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, { file: key, functions: parsed.functions.map((f) => ({ ...f })) });
+        continue;
+      }
+      for (const fn of parsed.functions) {
+        const prior = existing.functions.find((f) => f.name === fn.name && f.line === fn.line);
+        if (prior) prior.hits = Math.max(prior.hits, fn.hits);
+        else existing.functions.push({ ...fn });
+      }
+    }
+  }
+  return { files: [...merged.values()], missing };
 }
