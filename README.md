@@ -10,6 +10,7 @@ CRAP(f) = CC² × (1 − coverage)³ + CC
 - `coverage` = function-level coverage from istanbul LCOV (`FN`/`FNDA`)
 - Functions without coverage data are reported `N/A` and warned on stderr —
   never assumed covered.
+- Anonymous arrow callbacks may report N/A when the coverage tool emits no FN entry for them.
 
 Risk bands: ≤5 low, ≤30 moderate, >30 high.
 

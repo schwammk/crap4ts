@@ -65,6 +65,11 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--threshold', '-5'])).toThrow(CliError);
   });
 
+  it('rejects an empty or whitespace threshold', () => {
+    expect(() => parseArgs(['--threshold', ''])).toThrow(CliError);
+    expect(() => parseArgs(['--threshold', '   '])).toThrow(CliError);
+  });
+
   it('rejects a bad format', () => {
     expect(() => parseArgs(['--format', 'yaml'])).toThrow(CliError);
   });

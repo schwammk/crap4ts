@@ -50,7 +50,9 @@ export function parseArgs(argv: readonly string[]): CliOptions {
         options.useExistingCoverage = true;
         break;
       case '--threshold': {
-        const value = Number(needValue(flag, i));
+        const raw = needValue(flag, i);
+        if (raw.trim() === '') throw new CliError('--threshold requires a value');
+        const value = Number(raw);
         if (!Number.isFinite(value) || value < 0) throw new CliError('--threshold must be a non-negative number');
         options.threshold = value;
         i++;

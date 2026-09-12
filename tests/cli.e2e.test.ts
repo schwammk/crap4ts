@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { symlinkSync, mkdtempSync } from 'node:fs';
+import { rmSync, symlinkSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -46,5 +46,6 @@ describe('built CLI', () => {
     );
     expect(r.stdout).toContain('42.00');
     expect(r.status).toBe(1);
+    rmSync(dir, { recursive: true, force: true });
   });
 });
