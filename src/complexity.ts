@@ -23,6 +23,42 @@ export function isFunctionLike(node: ts.Node): boolean {
   return FUNCTION_LIKE.has(node.kind);
 }
 
+const LOGICAL_TOKENS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.AmpersandAmpersandToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.QuestionQuestionToken,
+  ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+  ts.SyntaxKind.BarBarEqualsToken,
+  ts.SyntaxKind.QuestionQuestionEqualsToken,
+]);
+
+function countDecisions(root: ts.Node): number {
+  let count = 0;
+  const visit = (node: ts.Node): void => {
+    if (node !== root && isFunctionLike(node)) return;
+    switch (node.kind) {
+      case ts.SyntaxKind.IfStatement:
+      case ts.SyntaxKind.ConditionalExpression:
+      case ts.SyntaxKind.ForStatement:
+      case ts.SyntaxKind.ForInStatement:
+      case ts.SyntaxKind.ForOfStatement:
+      case ts.SyntaxKind.WhileStatement:
+      case ts.SyntaxKind.DoStatement:
+      case ts.SyntaxKind.CatchClause:
+        count += 1;
+        break;
+      case ts.SyntaxKind.CaseClause:
+        if (!(node as ts.CaseClause).isDefaultCase) count += 1;
+        break;
+      default:
+        if (ts.isBinaryExpression(node) && LOGICAL_TOKENS.has(node.operatorToken.kind)) count += 1;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(root);
+  return count;
+}
+
 function enclosingClassName(node: ts.Node): string | undefined {
   let cur: ts.Node | undefined = node.parent;
   while (cur) {
@@ -60,7 +96,7 @@ export function computeComplexity(sourceText: string, filePath: string): Collect
       out.push({
         file: filePath,
         name: functionNameOf(node, sf),
-        cc: 1,
+        cc: 1 + countDecisions(node),
         startLine: lineOf(node),
       });
       ts.forEachChild(node, walk);
