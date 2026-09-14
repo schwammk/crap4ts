@@ -110,6 +110,7 @@ describe('joinCoverage', () => {
     name: 'add',
     cc: 2,
     startLine: 3,
+    endLine: 3,
     ...over,
   });
 
@@ -120,6 +121,8 @@ describe('joinCoverage', () => {
       file: 'packages/app-1/src/math.ts',
       name: 'add',
       cc: 2,
+      startLine: 3,
+      endLine: 3,
       coverage: 1,
       crap: 2,
       risk: 'low',

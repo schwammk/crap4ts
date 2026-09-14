@@ -6,6 +6,8 @@ const f = (over: Partial<ScoredFunction>): ScoredFunction => ({
   file: 'src/a.ts',
   name: 'add',
   cc: 2,
+  startLine: 1,
+  endLine: 2,
   coverage: 1,
   crap: 2,
   risk: 'low',

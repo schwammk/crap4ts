@@ -4,6 +4,8 @@ export interface ScoredFunction {
   file: string;
   name: string;
   cc: number;
+  startLine: number;
+  endLine: number;
   coverage: number | null;
   crap: number | null;
   risk: Risk;

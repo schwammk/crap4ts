@@ -183,6 +183,15 @@ export function joinCoverage(
   return functions.map((fn) => {
     const coverage = coverageFor(fn, lcov);
     const crap = crapScore(fn.cc, coverage);
-    return { file: fn.file, name: fn.name, cc: fn.cc, coverage, crap, risk: riskBand(crap) };
+    return {
+      file: fn.file,
+      name: fn.name,
+      cc: fn.cc,
+      startLine: fn.startLine,
+      endLine: fn.endLine,
+      coverage,
+      crap,
+      risk: riskBand(crap),
+    };
   });
 }

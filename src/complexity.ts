@@ -7,6 +7,7 @@ export interface CollectedFunction {
   name: string;
   cc: number;
   startLine: number;
+  endLine: number;
 }
 
 const FUNCTION_LIKE = new Set<ts.SyntaxKind>([
@@ -91,6 +92,8 @@ export function computeComplexity(sourceText: string, filePath: string): Collect
   const out: CollectedFunction[] = [];
   const lineOf = (node: ts.Node): number =>
     sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  const endLineOf = (node: ts.Node): number =>
+    sf.getLineAndCharacterOfPosition(node.getEnd()).line + 1;
   const walk = (node: ts.Node): void => {
     if (isFunctionLike(node)) {
       out.push({
@@ -98,6 +101,7 @@ export function computeComplexity(sourceText: string, filePath: string): Collect
         name: functionNameOf(node, sf),
         cc: 1 + countDecisions(node),
         startLine: lineOf(node),
+        endLine: endLineOf(node),
       });
       ts.forEachChild(node, walk);
       return;

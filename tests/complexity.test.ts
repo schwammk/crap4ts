@@ -3,10 +3,16 @@ import { computeComplexity } from '../src/complexity.js';
 
 describe('computeComplexity: collection and naming', () => {
   it('collects a plain function with CC 1', () => {
-    const src = 'export function base(): number { return 1; }';
+    const src = 'export function base(): number {\n  return 1;\n}';
     const fns = computeComplexity(src, 'src/a.ts');
     expect(fns).toHaveLength(1);
-    expect(fns[0]).toMatchObject({ file: 'src/a.ts', name: 'base', cc: 1, startLine: 1 });
+    expect(fns[0]).toMatchObject({ file: 'src/a.ts', name: 'base', cc: 1, startLine: 1, endLine: 3 });
+  });
+
+  it('one-line arrow functions have endLine equal to startLine', () => {
+    const fns = computeComplexity('export const scale = (n: number): number => n * 2;', 'src/s.ts');
+    expect(fns[0].startLine).toBe(1);
+    expect(fns[0].endLine).toBe(fns[0].startLine);
   });
 
   it('names a class method and constructor as Class.method', () => {
